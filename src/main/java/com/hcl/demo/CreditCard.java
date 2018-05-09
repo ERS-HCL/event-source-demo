@@ -1,11 +1,16 @@
 package com.hcl.demo;
 
+import javaslang.API;
+import javaslang.Predicates;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.util.*;
+
+import static javaslang.API.Case;
+import static javaslang.collection.List.ofAll;
 
 @NoArgsConstructor
 @ToString
@@ -32,9 +37,10 @@ public class CreditCard {
         limitAssigned(new LimitAssigned(uuid,new Date(),amount));
     }
 
-    private void limitAssigned(LimitAssigned limitAssigned) {
+    private CreditCard limitAssigned(LimitAssigned limitAssigned) {
         this.limit = limitAssigned.getLimit();
         dirtyEvents.add(limitAssigned);
+        return this;
     }
 
     private boolean limitAlreadyAssigned() {
@@ -49,9 +55,10 @@ public class CreditCard {
         cardWithDrawn(new CardWithdrawn(uuid,amount,new Date()));
     }
 
-    private void cardWithDrawn(CardWithdrawn cardWithdrawn) {
+    private CreditCard cardWithDrawn(CardWithdrawn cardWithdrawn) {
         this.used = used.add(cardWithdrawn.getAmount());
         dirtyEvents.add(cardWithdrawn);
+        return this;
     }
 
     private boolean notEnoughMoneyToWithdraw(BigDecimal amount) {
@@ -59,12 +66,14 @@ public class CreditCard {
     }
 
     void repay(BigDecimal amount) {
+
         cardRepaid(new CardRepaid(uuid,amount,new Date()));
     }
 
-    private void cardRepaid(CardRepaid cardRepaid) {
+    private CreditCard cardRepaid(CardRepaid cardRepaid) {
         used = used.subtract(cardRepaid.getAmount());
         dirtyEvents.add(cardRepaid);
+        return this;
     }
 
     public BigDecimal availableLimit() {
@@ -72,4 +81,22 @@ public class CreditCard {
     }
 
 
+    public void eventsFlushed() {
+    }
+
+    public static CreditCard recreate(UUID uuid, List<DomainEvent> events) {
+        return ofAll(events).foldLeft(new CreditCard(uuid), CreditCard::handle);
+    }
+
+    private CreditCard handle(DomainEvent domainEvent) {
+        return API.Match(domainEvent).of(
+                Case(Predicates.instanceOf(LimitAssigned.class),
+                        this::limitAssigned),
+                Case(Predicates.instanceOf(CardRepaid.class),
+                        this::cardRepaid),
+                Case(Predicates.instanceOf(CardWithdrawn.class),
+                        this::cardWithDrawn)
+        );
+
+    }
 }
