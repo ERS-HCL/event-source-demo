@@ -82,13 +82,14 @@ public class CreditCard {
 
 
     public void eventsFlushed() {
+        dirtyEvents.clear();
     }
 
     public static CreditCard recreate(UUID uuid, List<DomainEvent> events) {
         return ofAll(events).foldLeft(new CreditCard(uuid), CreditCard::handle);
     }
 
-    private CreditCard handle(DomainEvent domainEvent) {
+    CreditCard handle(DomainEvent domainEvent) {
         return API.Match(domainEvent).of(
                 Case(Predicates.instanceOf(LimitAssigned.class),
                         this::limitAssigned),

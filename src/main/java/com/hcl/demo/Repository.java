@@ -1,6 +1,7 @@
 package com.hcl.demo;
 
-import com.sun.java.browser.plugin2.DOM;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,17 +9,27 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Component
 public class Repository {
 
+    public static final String S1P_CREDIT_CARDS_EVENTS = "s1p-credit-cards-events";
     private final Map<UUID,List<DomainEvent>> eventStreams = new ConcurrentHashMap<>();
+    private final KafkaTemplate<String,DomainEvent> kafkaTemplate;
 
-    void save(CreditCard creditCard){
+    public Repository(KafkaTemplate<String, DomainEvent> kafkaTemplate) {
+        this.kafkaTemplate = kafkaTemplate;
+    }
+
+    void save(CreditCard creditCard) {
         List<DomainEvent> currentStream = eventStreams.getOrDefault(
                 creditCard.getUuid(), new ArrayList<>()
-                );
+        );
         List<DomainEvent> newEvents = creditCard.getDirtyEvents();
         currentStream.addAll(newEvents);
-        eventStreams.put(creditCard.getUuid(),currentStream);
+        eventStreams.put(creditCard.getUuid(), currentStream);
+        newEvents.forEach(
+                domainEvent -> kafkaTemplate.send(S1P_CREDIT_CARDS_EVENTS, domainEvent)
+        );
         creditCard.eventsFlushed();
     }
 

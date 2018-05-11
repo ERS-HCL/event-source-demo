@@ -1,10 +1,11 @@
 package com.hcl.demo
 
+import org.springframework.kafka.core.KafkaTemplate
 import spock.lang.Specification
 
 class RepositoryTest extends Specification {
-
-    Repository repository = new Repository()
+    KafkaTemplate kafkaTemplate = Stub(KafkaTemplate)
+    Repository repository = new Repository(kafkaTemplate)
 
     def 'should be able to save and load credit card'() {
         given:
